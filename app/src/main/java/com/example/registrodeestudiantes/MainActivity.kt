@@ -87,16 +87,13 @@ fun validarFormulario(
     carne: String,
     nombre: String,
     carrera: String,
-    semestre: String,
     correo: String,
     telefono: String,
-    direccion: String,
     jornada: String,
     listaCarnes: List<String>
 ): String {
     if (carne.isBlank() || nombre.isBlank() || carrera.isBlank() ||
-        semestre.isBlank() || correo.isBlank() || telefono.isBlank() ||
-        direccion.isBlank() || jornada.isBlank()
+        correo.isBlank() || telefono.isBlank() || jornada.isBlank()
     ) {
         return "Todos los campos y la jornada son obligatorios."
     }
@@ -161,10 +158,8 @@ fun PantallaRegistro(
     var carne by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var carrera by remember { mutableStateOf("") }
-    var semestre by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
 
     var jornada by remember { mutableStateOf("") }
 
@@ -182,10 +177,8 @@ fun PantallaRegistro(
         carne = ""
         nombre = ""
         carrera = ""
-        semestre = ""
         correo = ""
         telefono = ""
-        direccion = ""
         jornada = ""
         ingles = false
         frances = false
@@ -236,15 +229,6 @@ fun PantallaRegistro(
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = semestre,
-            onValueChange = { semestre = it },
-            label = { Text("Semestre") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
             value = correo,
             onValueChange = { correo = it },
             label = { Text("Correo electrónico") },
@@ -261,14 +245,6 @@ fun PantallaRegistro(
             label = { Text("Teléfono") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = direccion,
-            onValueChange = { direccion = it },
-            label = { Text("Dirección") },
-            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -339,10 +315,8 @@ fun PantallaRegistro(
                         carne,
                         nombre,
                         carrera,
-                        semestre,
                         correo,
                         telefono,
-                        direccion,
                         jornada,
                         listaCarnesRegistrados
                     )
