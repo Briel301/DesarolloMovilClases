@@ -17,6 +17,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.registrodeestudiantes.ui.theme.RegistroDeEstudiantesTheme
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+
 data class Estudiante(
     val carne: String,
     val nombre: String,
@@ -416,7 +419,42 @@ fun PantallaListaEstudiantes(
         Text(
             text = "Total de estudiantes: ${estudiantes.size}"
         )
+
         Spacer(modifier = Modifier.height(20.dp))
+
+        //Mostrar los estudiantes registrados
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+        ){
+            items(estudiantes){
+                estudiante ->
+                Card(
+                    modifier = Modifier
+                    .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                ){
+                    Column(
+                        modifier = Modifier.padding((12.dp))
+
+                    ){
+                        Text(
+                            text = estudiante.nombre,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        Text("Carné: ${estudiante.carne}")
+                        Text("Carrera: ${estudiante.carrera}")
+                        Text("Correo: ${estudiante.correo}")
+                        Text("Telefono: ${estudiante.telefono}")
+                        Text("Jornada: ${estudiante.jornada}")
+                        Text("Idiomas: ${estudiante.idiomas}")
+                    }
+                }
+            }
+        }
+
         OutlinedButton(
             onClick = volver,
             modifier = Modifier.fillMaxWidth()
