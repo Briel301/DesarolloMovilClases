@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.registrodeestudiantes.ui.theme.RegistroDeEstudiantesTheme
 
@@ -27,33 +26,51 @@ data class Estudiante(
     val jornada: String,
     val idiomas: String
 )
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             RegistroDeEstudiantesTheme {
-                var pantallaActual by remember{
-                    mutableStateOf("Inicio")
+                var pantallaActual by remember {
+                    mutableStateOf("inicio")
                 }
+                val listaEstudiantes = remember {
+                    mutableStateListOf<Estudiante>()
+                }
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
-                ){ innerPadding ->
-                    when (pantallaActual){
-                        "Inicio" ->{
-                            pantallaInicio(
+                ) { innerPadding ->
+                    when (pantallaActual) {
+                        "inicio" -> {
+                            PantallaInicio(
                                 irARegistro = {
                                     pantallaActual = "registro"
+                                },
+                                irALista = {
+                                    pantallaActual = "lista"
                                 },
                                 modifier = Modifier.padding(innerPadding)
                             )
                         }
                         "registro" -> {
                             PantallaRegistro(
+                                listaEstudiantes = listaEstudiantes,
                                 modifier = Modifier.padding(innerPadding),
                                 volver = {
-                                    pantallaActual = "Inicio"
+                                    pantallaActual = "inicio"
                                 }
+                            )
+                        }
+                        "lista" -> {
+                            PantallaListaEstudiantes(
+                                estudiantes = listaEstudiantes,
+                                volver = {
+                                    pantallaActual = "inicio"
+                                },
+                                modifier = Modifier.padding(innerPadding)
                             )
                         }
                     }
@@ -97,7 +114,44 @@ fun validarFormulario(
 }
 
 @Composable
+fun PantallaInicio(
+    irARegistro: () -> Unit,
+    irALista: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Registro de Estudiantes",
+            style = MaterialTheme.typography.headlineSmall
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = irARegistro,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Registrar estudiante")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = irALista,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Lista de estudiantes")
+        }
+    }
+}
+
+@Composable
 fun PantallaRegistro(
+    listaEstudiantes: MutableList<Estudiante>,
     modifier: Modifier = Modifier,
     volver: () -> Unit
 ) {
@@ -115,24 +169,11 @@ fun PantallaRegistro(
     var frances by remember { mutableStateOf(false) }
     var aleman by remember { mutableStateOf(false) }
 
-    var registrado by remember { mutableStateOf(false) }
+    var estudianteRegistrado by remember {
+        mutableStateOf<Estudiante?>(null)
+    }
+
     var mensajeError by remember { mutableStateOf("") }
-
-    var carneRegistrado by remember { mutableStateOf("") }
-    var nombreRegistrado by remember { mutableStateOf("") }
-    var carreraRegistrado by remember { mutableStateOf("") }
-    var semestreRegistrado by remember { mutableStateOf("") }
-    var correoRegistrado by remember { mutableStateOf("") }
-    var telefonoRegistrado by remember { mutableStateOf("") }
-    var direccionRegistrado by remember { mutableStateOf("") }
-
-    var jornadaRegistrada by remember { mutableStateOf("") }
-
-    var inglesRegistrado by remember { mutableStateOf(false) }
-    var francesRegistrado by remember { mutableStateOf(false) }
-    var alemanRegistrado by remember { mutableStateOf(false) }
-
-    val listaCarnes = remember { mutableStateListOf<String>() }
 
     val limpiarFormulario = {
         carne = ""
@@ -149,17 +190,11 @@ fun PantallaRegistro(
         mensajeError = ""
     }
 
-
-    var pantallaActual by remember {
-        mutableStateOf("inicio")
-    }
-
-
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
             .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             text = "Registro de Estudiantes",
@@ -283,7 +318,6 @@ fun PantallaRegistro(
             )
         }
 
-        // Aquí es donde residía el problema: esta Row organiza a ambos botones y llama a las validaciones.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -297,30 +331,42 @@ fun PantallaRegistro(
 
             Button(
                 onClick = {
+                    val listaCarnesRegistrados = listaEstudiantes.map { it.carne }
                     val validacion = validarFormulario(
-                        carne, nombre, carrera, semestre, correo, telefono, direccion, jornada, listaCarnes
+                        carne,
+                        nombre,
+                        carrera,
+                        semestre,
+                        correo,
+                        telefono,
+                        direccion,
+                        jornada,
+                        listaCarnesRegistrados
                     )
 
                     if (validacion.isEmpty()) {
-                        listaCarnes.add(carne)
-                        registrado = true
+                        val idiomasSeleccionados = buildString {
+                            if (ingles) append("Inglés ")
+                            if (frances) append("Francés ")
+                            if (aleman) append("Alemán ")
+                        }
 
-                        carneRegistrado = carne
-                        nombreRegistrado = nombre
-                        carreraRegistrado = carrera
-                        semestreRegistrado = semestre
-                        correoRegistrado = correo
-                        telefonoRegistrado = telefono
-                        direccionRegistrado = direccion
-                        jornadaRegistrada = jornada
-                        inglesRegistrado = ingles
-                        francesRegistrado = frances
-                        alemanRegistrado = aleman
+                        val nuevoEstudiante = Estudiante(
+                            carne = carne,
+                            nombre = nombre,
+                            carrera = carrera,
+                            correo = correo,
+                            telefono = telefono,
+                            jornada = jornada,
+                            idiomas = idiomasSeleccionados
+                        )
+
+                        estudianteRegistrado = nuevoEstudiante
+                        listaEstudiantes.add(nuevoEstudiante)
 
                         limpiarFormulario()
                     } else {
                         mensajeError = validacion
-                        registrado = false
                     }
                 },
                 modifier = Modifier.weight(1f)
@@ -330,71 +376,52 @@ fun PantallaRegistro(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        Card(
+        if (estudianteRegistrado != null) {
+            Text(
+                text = "Estudiante registrado correctamente",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Total de estudiantes: ${listaEstudiantes.size}"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        OutlinedButton(
+            onClick = volver,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-
-            ) {
-                Text(
-                    text = "Información del Estudiante",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (registrado) {
-                    Text("Carné: $carneRegistrado")
-                    Text("Nombre: $nombreRegistrado")
-                    Text("Carrera: $carreraRegistrado")
-                    Text("Semestre: $semestreRegistrado")
-                    Text("Correo: $correoRegistrado")
-                    Text("Teléfono: $telefonoRegistrado")
-                    Text("Dirección: $direccionRegistrado")
-                    Text("Jornada: $jornadaRegistrada")
-
-                    Text("Idiomas:")
-                    if (inglesRegistrado) { Text(" Inglés") }
-                    if (francesRegistrado) { Text(" Francés") }
-                    if (alemanRegistrado) { Text(" Alemán") }
-                } else {
-                    Text("No hay estudiantes registrados.")
-                }
-
-                Spacer (modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = volver,
-                    modifier = Modifier.fillMaxWidth()
-                ){
-                     Text("Volver")
-                }
-            }
+            Text("Volver")
         }
     }
 }
 
 @Composable
-fun pantallaInicio(
-    irARegistro: () -> Unit,
+fun PantallaListaEstudiantes(
+    estudiantes: List<Estudiante>,
+    volver: () -> Unit,
     modifier: Modifier = Modifier
-){
-    Column (
-        modifier = Modifier
+) {
+    Column(
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
-    ){
-      Text(
-          text = "Registro de Estudiantes",
-          style = MaterialTheme.typography.headlineSmall
-      )
-
-    Spacer(modifier = Modifier.height(20.dp))
-
-    Button(
-        onClick = irARegistro,
-        modifier = Modifier.fillMaxWidth()
-    ){
-        Text ("Registrar estudiante")
-    }
+    ) {
+        Text(
+            text = "Lista de Estudiantes",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = "Total de estudiantes: ${estudiantes.size}"
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        OutlinedButton(
+            onClick = volver,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Volver")
+        }
     }
 }
