@@ -16,9 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.registrodeestudiantes.ui.theme.RegistroDeEstudiantesTheme
-
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.platform.LocalContext
 
 data class Estudiante(
     val carne: String,
@@ -68,8 +68,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         "lista" -> {
+                            val context = LocalContext.current
+                            val baseDatos = remember { BaseDatos(context) }
+                            val estudiantesBD = remember(pantallaActual) { baseDatos.obtenerEstudiantes() }
+
                             PantallaListaEstudiantes(
-                                estudiantes = listaEstudiantes,
+                                estudiantesDB = estudiantesBD,
                                 volver = {
                                     pantallaActual = "inicio"
                                 },
@@ -155,6 +159,11 @@ fun PantallaRegistro(
     modifier: Modifier = Modifier,
     volver: () -> Unit
 ) {
+    val context = LocalContext.current
+    val baseDatos = remember {
+        BaseDatos(context)
+    }
+    
     var carne by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var carrera by remember { mutableStateOf("") }
@@ -310,7 +319,7 @@ fun PantallaRegistro(
 
             Button(
                 onClick = {
-                    val listaCarnesRegistrados = listaEstudiantes.map { it.carne }
+                    val listaCarnesRegistrados = baseDatos.obtenerEstudiantes().map { it.carne }
                     val validacion = validarFormulario(
                         carne,
                         nombre,
@@ -338,8 +347,15 @@ fun PantallaRegistro(
                             idiomas = idiomasSeleccionados
                         )
 
-                        estudianteRegistrado = nuevoEstudiante
+                        val guardado = baseDatos.insertarEstudiante(nuevoEstudiante)
+                        if (guardado) {
+                            println("Estudiante guardado en SQLite")
+                        } else {
+                            println("Error al guardar estudiante")
+                        }
+
                         listaEstudiantes.add(nuevoEstudiante)
+                        estudianteRegistrado = nuevoEstudiante
 
                         limpiarFormulario()
                     } else {
@@ -376,7 +392,7 @@ fun PantallaRegistro(
 
 @Composable
 fun PantallaListaEstudiantes(
-    estudiantes: List<Estudiante>,
+    estudiantesDB: List<Estudiante>,
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -391,7 +407,7 @@ fun PantallaListaEstudiantes(
         )
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "Total de estudiantes: ${estudiantes.size}"
+            text = "Total de estudiantes: ${estudiantesDB.size}"
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -402,7 +418,7 @@ fun PantallaListaEstudiantes(
                 .weight(1f)
                 .fillMaxWidth(),
         ){
-            items(estudiantes){
+            items(estudiantesDB){
                 estudiante ->
                 Card(
                     modifier = Modifier
