@@ -19,6 +19,7 @@ import com.example.registrodeestudiantes.ui.theme.RegistroDeEstudiantesTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.platform.LocalContext
+import java.util.Collections.addAll
 
 data class Estudiante(
     val carne: String,
@@ -71,6 +72,8 @@ class MainActivity : ComponentActivity() {
                             val context = LocalContext.current
                             val baseDatos = remember { BaseDatos(context) }
                             val estudiantesBD = remember(pantallaActual) { baseDatos.obtenerEstudiantes() }
+
+
 
                             PantallaListaEstudiantes(
                                 estudiantesDB = estudiantesBD,
@@ -396,6 +399,14 @@ fun PantallaListaEstudiantes(
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
+    val baseDatos = remember {
+        BaseDatos(context)
+    }
+
+
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -440,6 +451,14 @@ fun PantallaListaEstudiantes(
                         Text("Telefono: ${estudiante.telefono}")
                         Text("Jornada: ${estudiante.jornada}")
                         Text("Idiomas: ${estudiante.idiomas}")
+
+                        Button(
+                            onClick = {
+                                baseDatos.eliminarEstudiante(estudiante.carne)
+                            }
+                        ){
+                            Text("Eliminar")
+                        }
                     }
                 }
             }

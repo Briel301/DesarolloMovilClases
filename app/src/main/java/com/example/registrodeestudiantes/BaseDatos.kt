@@ -80,4 +80,16 @@ class BaseDatos(context: Context): SQLiteOpenHelper(
         return lista
     }
 
+    fun eliminarEstudiante (carne: String): Boolean{
+
+        val db = writableDatabase
+
+        val resultado = db.delete(
+            "Estudiantes",
+            "carne = ?",
+            arrayOf(carne)
+        )
+        return resultado > 0
+    }
+
 }
