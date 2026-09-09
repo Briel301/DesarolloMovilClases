@@ -69,14 +69,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         "lista" -> {
-                            val context = LocalContext.current
-                            val baseDatos = remember { BaseDatos(context) }
-                            val estudiantesBD = remember(pantallaActual) { baseDatos.obtenerEstudiantes() }
-
-
-
                             PantallaListaEstudiantes(
-                                estudiantesDB = estudiantesBD,
                                 volver = {
                                     pantallaActual = "inicio"
                                 },
@@ -395,17 +388,18 @@ fun PantallaRegistro(
 
 @Composable
 fun PantallaListaEstudiantes(
-    estudiantesDB: List<Estudiante>,
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val baseDatos = remember { BaseDatos(context) }
 
-    val baseDatos = remember {
-        BaseDatos(context)
+    // Lista observable para Compose inicializada con los registros de SQLite
+    val estudiantesBD = remember {
+        mutableStateListOf<Estudiante>().apply {
+            addAll(baseDatos.obtenerEstudiantes())
+        }
     }
-
-
 
     Column(
         modifier = modifier
@@ -417,29 +411,27 @@ fun PantallaListaEstudiantes(
             style = MaterialTheme.typography.headlineSmall
         )
         Spacer(modifier = Modifier.height(20.dp))
+
         Text(
-            text = "Total de estudiantes: ${estudiantesDB.size}"
+            text = "Total de estudiantes: ${estudiantesBD.size}"
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        //Mostrar los estudiantes registrados
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-        ){
-            items(estudiantesDB){
-                estudiante ->
+        ) {
+            items(estudiantesBD) { estudiante ->
                 Card(
                     modifier = Modifier
-                    .fillMaxWidth()
+                        .fillMaxWidth()
                         .padding(vertical = 6.dp)
-                ){
+                ) {
                     Column(
-                        modifier = Modifier.padding((12.dp))
-
-                    ){
+                        modifier = Modifier.padding(12.dp)
+                    ) {
                         Text(
                             text = estudiante.nombre,
                             style = MaterialTheme.typography.titleMedium
@@ -448,21 +440,28 @@ fun PantallaListaEstudiantes(
                         Text("Carné: ${estudiante.carne}")
                         Text("Carrera: ${estudiante.carrera}")
                         Text("Correo: ${estudiante.correo}")
-                        Text("Telefono: ${estudiante.telefono}")
+                        Text("Teléfono: ${estudiante.telefono}")
                         Text("Jornada: ${estudiante.jornada}")
                         Text("Idiomas: ${estudiante.idiomas}")
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Button(
                             onClick = {
-                                baseDatos.eliminarEstudiante(estudiante.carne)
+                                val eliminado = baseDatos.eliminarEstudiante(estudiante.carne)
+                                if (eliminado) {
+                                    estudiantesBD.remove(estudiante)
+                                }
                             }
-                        ){
+                        ) {
                             Text("Eliminar")
                         }
                     }
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = volver,

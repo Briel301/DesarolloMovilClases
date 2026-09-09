@@ -85,11 +85,13 @@ class BaseDatos(context: Context): SQLiteOpenHelper(
         val db = writableDatabase
 
         val resultado = db.delete(
-            "Estudiantes",
+            "estudiantes",
             "carne = ?",
             arrayOf(carne)
         )
         return resultado > 0
     }
+
+
 
 }
