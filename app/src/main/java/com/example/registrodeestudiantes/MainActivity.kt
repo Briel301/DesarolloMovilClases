@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
                 var pantallaActual by remember {
                     mutableStateOf("inicio")
                 }
+                var estudianteAEditar by remember { mutableStateOf<Estudiante?>(null) }
                 val listaEstudiantes = remember {
                     mutableStateListOf<Estudiante>()
                 }
@@ -70,11 +71,25 @@ class MainActivity : ComponentActivity() {
                         }
                         "lista" -> {
                             PantallaListaEstudiantes(
+                                onEditarEstudiante = { estudianteSeleccionado ->
+                                    estudianteAEditar = estudianteSeleccionado
+                                    pantallaActual = "editar"
+                                },
                                 volver = {
                                     pantallaActual = "inicio"
                                 },
                                 modifier = Modifier.padding(innerPadding)
                             )
+                        }
+                        "editar" -> {
+                            estudianteAEditar?.let { estudiante ->
+                                PantallaEditarEstudiante(
+                                    estudiante = estudiante,
+                                    volver = {
+                                        pantallaActual = "lista"
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -388,6 +403,7 @@ fun PantallaRegistro(
 
 @Composable
 fun PantallaListaEstudiantes(
+    onEditarEstudiante: (Estudiante) -> Unit, // <-- Agregamos este parámetro
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -456,6 +472,13 @@ fun PantallaListaEstudiantes(
                         ) {
                             Text("Eliminar")
                         }
+                        Button(
+                            onClick = {
+                                onEditarEstudiante(estudiante)
+                            }
+                        ) {
+                            Text("Editar")
+                        }
                     }
                 }
             }
@@ -468,6 +491,194 @@ fun PantallaListaEstudiantes(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Volver")
+        }
+    }
+
+}
+@Composable
+fun PantallaEditarEstudiante(
+    estudiante: Estudiante,
+    volver: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val baseDatos = remember { BaseDatos(context) }
+
+    // Estados inicializados con los datos actuales del estudiante
+    val carne by remember { mutableStateOf(estudiante.carne) }
+    var nombre by remember { mutableStateOf(estudiante.nombre) }
+    var carrera by remember { mutableStateOf(estudiante.carrera) }
+    var correo by remember { mutableStateOf(estudiante.correo) }
+    var telefono by remember { mutableStateOf(estudiante.telefono) }
+    var jornada by remember { mutableStateOf(estudiante.jornada) }
+
+    // Detección de idiomas marcados previamente
+    var ingles by remember { mutableStateOf(estudiante.idiomas.contains("Inglés")) }
+    var frances by remember { mutableStateOf(estudiante.idiomas.contains("Francés")) }
+    var aleman by remember { mutableStateOf(estudiante.idiomas.contains("Alemán")) }
+
+    var mensajeError by remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "Editar Estudiante",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Campo de Carné deshabilitado para no modificar la clave primaria
+        OutlinedTextField(
+            value = carne,
+            onValueChange = {},
+            label = { Text("Carné (No editable)") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = nombre,
+            onValueChange = { entrada ->
+                if (entrada.all { it.isLetter() || it.isWhitespace() }) nombre = entrada
+            },
+            label = { Text("Nombre completo") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = carrera,
+            onValueChange = { carrera = it },
+            label = { Text("Carrera") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = correo,
+            onValueChange = { correo = it },
+            label = { Text("Correo electrónico") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = telefono,
+            onValueChange = { entrada ->
+                if (entrada.all { it.isDigit() } && entrada.length <= 8) telefono = entrada
+            },
+            label = { Text("Teléfono") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Seleccione la jornada",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(
+                selected = jornada == "Matutina",
+                onClick = { jornada = "Matutina" }
+            )
+            Text(text = "Matutina", modifier = Modifier.padding(top = 12.dp))
+
+            RadioButton(
+                selected = jornada == "Vespertina",
+                onClick = { jornada = "Vespertina" }
+            )
+            Text(text = "Vespertina", modifier = Modifier.padding(top = 12.dp))
+
+            RadioButton(
+                selected = jornada == "Nocturna",
+                onClick = { jornada = "Nocturna" }
+            )
+            Text(text = "Nocturna", modifier = Modifier.padding(top = 12.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Idiomas que maneja",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = ingles, onCheckedChange = { ingles = it })
+            Text(text = "Inglés", modifier = Modifier.padding(top = 12.dp))
+
+            Checkbox(checked = frances, onCheckedChange = { frances = it })
+            Text(text = "Francés", modifier = Modifier.padding(top = 12.dp))
+
+            Checkbox(checked = aleman, onCheckedChange = { aleman = it })
+            Text(text = "Alemán", modifier = Modifier.padding(top = 12.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (mensajeError.isNotEmpty()) {
+            Text(
+                text = mensajeError,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = volver,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cancelar")
+            }
+
+            Button(
+                onClick = {
+                    if (nombre.isBlank() || carrera.isBlank() || correo.isBlank() ||
+                        telefono.isBlank() || jornada.isBlank()
+                    ) {
+                        mensajeError = "Todos los campos y la jornada son obligatorios."
+                    } else if (!Patterns.EMAIL_ADDRESS.matcher(correo).matches()) {
+                        mensajeError = "Por favor, ingresa un correo electrónico válido."
+                    } else if (telefono.length != 8) {
+                        mensajeError = "El teléfono debe tener 8 dígitos."
+                    } else {
+                        val idiomasSeleccionados = buildString {
+                            if (ingles) append("Inglés ")
+                            if (frances) append("Francés ")
+                            if (aleman) append("Alemán ")
+                        }
+
+                        val estudianteActualizado = Estudiante(
+                            carne = carne,
+                            nombre = nombre,
+                            carrera = carrera,
+                            correo = correo,
+                            telefono = telefono,
+                            jornada = jornada,
+                            idiomas = idiomasSeleccionados
+                        )
+
+                        val actualizado = baseDatos.actualizarEstudiante(estudianteActualizado)
+                        if (actualizado) {
+                            volver()
+                        } else {
+                            mensajeError = "Error al actualizar en la base de datos."
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Guardar")
+            }
         }
     }
 }

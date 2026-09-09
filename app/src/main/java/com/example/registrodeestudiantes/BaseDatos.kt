@@ -92,6 +92,24 @@ class BaseDatos(context: Context): SQLiteOpenHelper(
         return resultado > 0
     }
 
+    fun actualizarEstudiante(estudiante: Estudiante): Boolean {
+        val db = writableDatabase
+        val valores = ContentValues().apply {
+            put("nombre", estudiante.nombre)
+            put("carrera", estudiante.carrera)
+            put("correo", estudiante.correo)
+            put("telefono", estudiante.telefono)
+            put("jornada", estudiante.jornada)
+            put("idiomas", estudiante.idiomas)
+        }
 
+        val resultado = db.update(
+            "estudiantes",
+            valores,
+            "carne = ?",
+            arrayOf(estudiante.carne)
+        )
+        return resultado > 0
+    }
 
 }
