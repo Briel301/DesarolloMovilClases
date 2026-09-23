@@ -18,9 +18,15 @@ import androidx.compose.ui.unit.dp
 import com.example.registrodeestudiantes.ui.theme.RegistroDeEstudiantesTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.platform.LocalContext
-import java.util.Collections.addAll
+import kotlinx.serialization.Serializable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
 
+import android.util.Log
+
+@Serializable
 data class Estudiante(
     val carne: String,
     val nombre: String,
@@ -43,6 +49,18 @@ class MainActivity : ComponentActivity() {
                 var estudianteAEditar by remember { mutableStateOf<Estudiante?>(null) }
                 val listaEstudiantes = remember {
                     mutableStateListOf<Estudiante>()
+                }
+
+                LaunchedEffect(Unit) {
+                    try {
+                        Log.d("SUPABASE_DEBUG", "Iniciando carga de estudiantes...")
+                        val datos = obtenerEstudiantes()
+                        Log.d("SUPABASE_DEBUG", "Estudiantes recibidos: ${datos.size}")
+                        listaEstudiantes.clear()
+                        listaEstudiantes.addAll(datos)
+                    } catch (e: Exception) {
+                        Log.e("SUPABASE_ERROR", "Error al cargar desde Supabase: ${e.message}", e)
+                    }
                 }
 
                 Scaffold(
@@ -71,6 +89,7 @@ class MainActivity : ComponentActivity() {
                         }
                         "lista" -> {
                             PantallaListaEstudiantes(
+                                listaEstudiantes = listaEstudiantes,
                                 onEditarEstudiante = { estudianteSeleccionado ->
                                     estudianteAEditar = estudianteSeleccionado
                                     pantallaActual = "editar"
@@ -85,9 +104,11 @@ class MainActivity : ComponentActivity() {
                             estudianteAEditar?.let { estudiante ->
                                 PantallaEditarEstudiante(
                                     estudiante = estudiante,
+                                    listaEstudiantes = listaEstudiantes,
                                     volver = {
                                         pantallaActual = "lista"
-                                    }
+                                    },
+                                    modifier = Modifier.padding(innerPadding)
                                 )
                             }
                         }
@@ -170,28 +191,21 @@ fun PantallaRegistro(
     modifier: Modifier = Modifier,
     volver: () -> Unit
 ) {
-    val context = LocalContext.current
-    val baseDatos = remember {
-        BaseDatos(context)
-    }
-    
+    val scope = rememberCoroutineScope()
+
     var carne by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var carrera by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
-
     var jornada by remember { mutableStateOf("") }
 
     var ingles by remember { mutableStateOf(false) }
     var frances by remember { mutableStateOf(false) }
     var aleman by remember { mutableStateOf(false) }
 
-    var estudianteRegistrado by remember {
-        mutableStateOf<Estudiante?>(null)
-    }
-
     var mensajeError by remember { mutableStateOf("") }
+    var registrando by remember { mutableStateOf(false) }
 
     val limpiarFormulario = {
         carne = ""
@@ -323,14 +337,15 @@ fun PantallaRegistro(
         ) {
             OutlinedButton(
                 onClick = { limpiarFormulario() },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = !registrando
             ) {
                 Text("Limpiar")
             }
 
             Button(
                 onClick = {
-                    val listaCarnesRegistrados = baseDatos.obtenerEstudiantes().map { it.carne }
+                    val listaCarnesRegistrados = listaEstudiantes.map { it.carne }
                     val validacion = validarFormulario(
                         carne,
                         nombre,
@@ -342,11 +357,12 @@ fun PantallaRegistro(
                     )
 
                     if (validacion.isEmpty()) {
+                        registrando = true
                         val idiomasSeleccionados = buildString {
                             if (ingles) append("Inglés ")
                             if (frances) append("Francés ")
                             if (aleman) append("Alemán ")
-                        }
+                        }.trim()
 
                         val nuevoEstudiante = Estudiante(
                             carne = carne,
@@ -358,43 +374,38 @@ fun PantallaRegistro(
                             idiomas = idiomasSeleccionados
                         )
 
-                        val guardado = baseDatos.insertarEstudiante(nuevoEstudiante)
-                        if (guardado) {
-                            println("Estudiante guardado en SQLite")
-                        } else {
-                            println("Error al guardar estudiante")
+                        scope.launch {
+                            try {
+                                insertarEstudiante(nuevoEstudiante)
+                                listaEstudiantes.add(nuevoEstudiante)
+                                limpiarFormulario()
+                                mensajeError = "Estudiante registrado correctamente."
+                            } catch (e: Exception) {
+                                mensajeError = "Error al conectar con Supabase: ${e.message}"
+                            } finally {
+                                registrando = false
+                            }
                         }
-
-                        listaEstudiantes.add(nuevoEstudiante)
-                        estudianteRegistrado = nuevoEstudiante
-
-                        limpiarFormulario()
                     } else {
                         mensajeError = validacion
                     }
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = !registrando
             ) {
-                Text("Registrar")
+                if (registrando) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Registrar")
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (estudianteRegistrado != null) {
-            Text(
-                text = "Estudiante registrado correctamente",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Total de estudiantes: ${listaEstudiantes.size}"
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
         OutlinedButton(
             onClick = volver,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !registrando
         ) {
             Text("Volver")
         }
@@ -403,19 +414,12 @@ fun PantallaRegistro(
 
 @Composable
 fun PantallaListaEstudiantes(
-    onEditarEstudiante: (Estudiante) -> Unit, // <-- Agregamos este parámetro
+    listaEstudiantes: MutableList<Estudiante>,
+    onEditarEstudiante: (Estudiante) -> Unit,
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val baseDatos = remember { BaseDatos(context) }
-
-    // Lista observable para Compose inicializada con los registros de SQLite
-    val estudiantesBD = remember {
-        mutableStateListOf<Estudiante>().apply {
-            addAll(baseDatos.obtenerEstudiantes())
-        }
-    }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = modifier
@@ -429,7 +433,7 @@ fun PantallaListaEstudiantes(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Total de estudiantes: ${estudiantesBD.size}"
+            text = "Total de estudiantes: ${listaEstudiantes.size}"
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -439,7 +443,7 @@ fun PantallaListaEstudiantes(
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            items(estudiantesBD) { estudiante ->
+            items(listaEstudiantes) { estudiante ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -462,22 +466,29 @@ fun PantallaListaEstudiantes(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Button(
-                            onClick = {
-                                val eliminado = baseDatos.eliminarEstudiante(estudiante.carne)
-                                if (eliminado) {
-                                    estudiantesBD.remove(estudiante)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            eliminarEstudiante(estudiante.carne)
+                                            listaEstudiantes.remove(estudiante)
+                                        } catch (e: Exception) {
+                                            // Error handling could be added here (e.g. Snackbar)
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Eliminar")
+                            }
+                            Button(
+                                onClick = {
+                                    onEditarEstudiante(estudiante)
                                 }
+                            ) {
+                                Text("Editar")
                             }
-                        ) {
-                            Text("Eliminar")
-                        }
-                        Button(
-                            onClick = {
-                                onEditarEstudiante(estudiante)
-                            }
-                        ) {
-                            Text("Editar")
                         }
                     }
                 }
@@ -493,18 +504,17 @@ fun PantallaListaEstudiantes(
             Text("Volver")
         }
     }
-
 }
+
 @Composable
 fun PantallaEditarEstudiante(
     estudiante: Estudiante,
+    listaEstudiantes: MutableList<Estudiante>,
     volver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val baseDatos = remember { BaseDatos(context) }
+    val scope = rememberCoroutineScope()
 
-    // Estados inicializados con los datos actuales del estudiante
     val carne by remember { mutableStateOf(estudiante.carne) }
     var nombre by remember { mutableStateOf(estudiante.nombre) }
     var carrera by remember { mutableStateOf(estudiante.carrera) }
@@ -512,12 +522,12 @@ fun PantallaEditarEstudiante(
     var telefono by remember { mutableStateOf(estudiante.telefono) }
     var jornada by remember { mutableStateOf(estudiante.jornada) }
 
-    // Detección de idiomas marcados previamente
     var ingles by remember { mutableStateOf(estudiante.idiomas.contains("Inglés")) }
     var frances by remember { mutableStateOf(estudiante.idiomas.contains("Francés")) }
     var aleman by remember { mutableStateOf(estudiante.idiomas.contains("Alemán")) }
 
     var mensajeError by remember { mutableStateOf("") }
+    var guardando by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -531,7 +541,6 @@ fun PantallaEditarEstudiante(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Campo de Carné deshabilitado para no modificar la clave primaria
         OutlinedTextField(
             value = carne,
             onValueChange = {},
@@ -635,7 +644,8 @@ fun PantallaEditarEstudiante(
         ) {
             OutlinedButton(
                 onClick = volver,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = !guardando
             ) {
                 Text("Cancelar")
             }
@@ -651,11 +661,12 @@ fun PantallaEditarEstudiante(
                     } else if (telefono.length != 8) {
                         mensajeError = "El teléfono debe tener 8 dígitos."
                     } else {
+                        guardando = true
                         val idiomasSeleccionados = buildString {
                             if (ingles) append("Inglés ")
                             if (frances) append("Francés ")
                             if (aleman) append("Alemán ")
-                        }
+                        }.trim()
 
                         val estudianteActualizado = Estudiante(
                             carne = carne,
@@ -667,17 +678,30 @@ fun PantallaEditarEstudiante(
                             idiomas = idiomasSeleccionados
                         )
 
-                        val actualizado = baseDatos.actualizarEstudiante(estudianteActualizado)
-                        if (actualizado) {
-                            volver()
-                        } else {
-                            mensajeError = "Error al actualizar en la base de datos."
+                        scope.launch {
+                            try {
+                                actualizarEstudiante(estudianteActualizado)
+                                val index = listaEstudiantes.indexOfFirst { it.carne == carne }
+                                if (index != -1) {
+                                    listaEstudiantes[index] = estudianteActualizado
+                                }
+                                volver()
+                            } catch (e: Exception) {
+                                mensajeError = "Error al actualizar en Supabase: ${e.message}"
+                            } finally {
+                                guardando = false
+                            }
                         }
                     }
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = !guardando
             ) {
-                Text("Guardar")
+                if (guardando) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Guardar")
+                }
             }
         }
     }
